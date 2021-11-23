@@ -52,13 +52,13 @@ function App() {
   }
 
   const onSaveImages = (elementsClone) => {
-    setElements(elementsClone)
+    // setElements(elementsClone)
   }
 
 
-  console.log(drawArray)
-  console.log(textArray)
-  console.log(elements)
+  // console.log(drawArray)
+  // console.log(textArray)
+  // console.log(elements)
 
   return (
     <div className="App">

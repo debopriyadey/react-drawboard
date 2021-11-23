@@ -73,7 +73,7 @@
     border: none;
     background-color: transparent ;
     font-size: 20px !important;
-    font-weight: 500 !important;
+    font-weight: 600 !important;
   }
   
   .form-control {
@@ -114,16 +114,16 @@
   .pen-style-open {
     display: block;
     position: absolute;
-    top: 80px;
-    left: 60px;
+    top: 60px;
+    left: 50px;
     font-size: 25px !important;
   }
   
   .erase-style-open {
     display: none;
     position: absolute;
-    top: 190px;
-    left: 60px;
+    top: 150px;
+    left: 50px;
     font-size: 25px !important;
   }
   
@@ -149,11 +149,12 @@
   }
   
   .pen-width-view {
-    margin: 4px 10px;
-    padding: 8px 15px;
-    border: 2px solid #fff;
+    margin: 2px;
+    padding: 4px;
+    border: 1px solid #fff;
     border-radius: 5px;
-    width: 50px;
+    width: 35px;
+    font-size: 16px;
   }
   
   .save-btn {

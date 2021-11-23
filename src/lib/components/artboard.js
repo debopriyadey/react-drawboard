@@ -1,7 +1,7 @@
 import React, { useEffect as UseEffect, useState as UseState, useRef as UseRef } from 'react'
 import { exportComponentAsJPEG, exportComponentAsPDF, exportComponentAsPNG } from 'react-component-export-image';
 
-import { SketchPicker } from 'react-color';
+import { SketchPicker, BlockPicker } from 'react-color';
 
 import { FaPenAlt, FaImages, FaEraser, FaHandPointer, FaAngleDoubleLeft, FaAngleDoubleRight, FaDownload, FaSave } from 'react-icons/fa';
 import { IoMdCloseCircle, IoMdMove } from 'react-icons/io'
@@ -185,21 +185,30 @@ export default function artboard(props) {
     }, [])
 
     UseEffect(() => {
+        console.log(props.images)
+        //var elementsCloneUpdImg = [...elements]
+        //elementsCloneUpdImg = props.images
+        setElements(props.images)
+        console.log(elements)
+        
+    }, [props.images])
+
+    UseEffect(() => {
         const canvas = canvasRef.current
-        canvas.width = window.innerWidth * 2;
-        canvas.height = window.innerHeight * 2;
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
         canvas.style.width = `${window.innerWidth}px`;
         canvas.style.height = `${window.innerHeight}px`;
         const context = canvas.getContext("2d")
-        context.scale(2, 2);
+        //context.scale(2, 2);
         context.lineCap = "round";
         contextRef.current = context;
 
-        // redrawing every image on vlue change of image
+        // redrawing every image on value change of image
         elements.length > 0 && elements.forEach((imageElement) => {
             const { image, x1, y1, widthX, heightY } = imageElement
             Object.keys(imageElement.image).length === 0 && imageElement.image.constructor === Object ? // returns true if image object is empty
-                console.log('no image') :
+                nothing() :
                 contextRef.current.drawImage(image, x1, y1, widthX, heightY)
         });
 
@@ -243,7 +252,6 @@ export default function artboard(props) {
         props.onSaveImages(elements)
     }, [elements])
 
-
     // Saving the data in session storage
     UseEffect(() => {
         var drawStore = sessionStorage.getItem('draw ' + itemNo)
@@ -259,17 +267,21 @@ export default function artboard(props) {
 
 
     // drawing image
-    const createElement = (id, x1, y1, x2, y2, type, image, widthX, heightY) => {
+    const createElement = (id, x1, y1, x2, y2, type, image, widthX, heightY, modelType) => {
         clearCanvas()
         contextRef.current.drawImage(image, x1, y1, widthX, heightY);
-        return { id, x1, y1, x2, y2, type, image, widthX, heightY };
+        return { id, x1, y1, x2, y2, type, image, widthX, heightY, modelType };
     }
 
     // updating image
-    const updateElement = (id, x1, y1, x2, y2, type, image, widthX, heightY) => {
-        const updatedElement = createElement(id, x1, y1, x2, y2, type, image, widthX, heightY);
+    const updateElement = (id, x1, y1, x2, y2, type, image, widthX, heightY, modelType) => {
+        const updatedElement = createElement(id, x1, y1, x2, y2, type, image, widthX, heightY, modelType);
         const elementsCopy = [...elements];
-        elementsCopy[id] = updatedElement;
+        elementsCopy.map((elementsCopyObject, i) => {
+            if (elementsCopyObject.id === updatedElement.id) {
+                elementsCopy[i] = updatedElement;
+            }
+        })
         setElements(elementsCopy);
     };
 
@@ -308,22 +320,29 @@ export default function artboard(props) {
         var offsetY
 
         const { type } = nativeEvent
-        if ( type === 'mousedown') {
-            offsetX = nativeEvent.clientX
-            offsetY = nativeEvent.clientY
+
+        if (type === 'mousedown') {
+            offsetX = nativeEvent.offsetX
+            offsetY = nativeEvent.offsetY
         } else {
-            offsetX = nativeEvent.changedTouches[0].clientX
-            offsetY = nativeEvent.changedTouches[0].clientY
+            var rect = nativeEvent.target.getBoundingClientRect();
+            offsetX = nativeEvent.changedTouches[0].pageX - rect.left;
+            offsetY = nativeEvent.changedTouches[0].pageY - rect.top;
         }
 
 
         if (tool === "selection") {
             const element = getElementAtPosition(offsetX, offsetY, elements);
             if (element) {
+                var removeBtn = document.getElementById('remove')
+                removeBtn.style.display = 'block'
+                removeBtn.style.position = 'absolute'
+                removeBtn.style.setProperty('left', (element.x1 -10) + 'px')
+                removeBtn.style.setProperty('top', (element.y1 - 10) + 'px')
+
                 const clientX = offsetX - element.x1;
                 const clientY = offsetY - element.y1;
                 setSelectedElement({ ...element, clientX, clientY });
-
                 if (element.position === "inside") {
                     setAction("moving");
                 } else {
@@ -345,18 +364,27 @@ export default function artboard(props) {
         var offsetY
 
         const { type } = nativeEvent
-        if ( type === 'mousemove') {
-            offsetX = nativeEvent.clientX
-            offsetY = nativeEvent.clientY
+        if (type === 'mousemove') {
+            offsetX = nativeEvent.offsetX
+            offsetY = nativeEvent.offsetY
         } else {
-            offsetX = nativeEvent.changedTouches[0].clientX
-            offsetY = nativeEvent.changedTouches[0].clientY
+            var rect = nativeEvent.target.getBoundingClientRect();
+            offsetX = nativeEvent.changedTouches[0].pageX - rect.left;
+            offsetY = nativeEvent.changedTouches[0].pageY - rect.top;
         }
 
         var drawArrayClone = { ...drawArray }
         if (tool === "selection") {
+
             const element = getElementAtPosition(offsetX, offsetY, elements);
             nativeEvent.target.style.cursor = element ? cursorForPosition(element.position) : "default";
+            var removeBtn = document.getElementById('remove')
+            if (element !== undefined) {
+                removeBtn.style.setProperty('left', (element.x1 - 10) + 'px')
+                removeBtn.style.setProperty('top', (element.y1 - 10) + 'px')
+            } else {
+                removeBtn.style.display = 'none'
+            }
         } else if (tool === 'pen') {
             window.document.getElementById('canvas').style.cursor = "crosshair"
         }
@@ -367,16 +395,16 @@ export default function artboard(props) {
             textArray[textArrayIndex].x = offsetX
             textArray[textArrayIndex].y = offsetY
         } else if (action === "moving") {
-            const { id, x1, x2, y1, y2, type, clientX, clientY, image, widthX, heightY } = selectedElement;
+            const { id, x1, x2, y1, y2, type, clientX, clientY, image, widthX, heightY, modelType } = selectedElement;
             const width = x2 - x1;
             const height = y2 - y1;
             const newX1 = offsetX - clientX;
             const newY1 = offsetY - clientY;
-            updateElement(id, newX1, newY1, newX1 + width, newY1 + height, type, image, widthX, heightY);
+            updateElement(id, newX1, newY1, newX1 + width, newY1 + height, type, image, widthX, heightY, modelType);
         } else if (action === "resizing") {
-            const { id, type, position, x1, y1, x2, y2, image, widthX, heightY } = selectedElement;
+            const { id, type, position, x1, y1, x2, y2, image, widthX, heightY, modelType } = selectedElement;
             const { nx1, ny1, nx2, ny2, nwidthX, nheightY } = resizedCoordinates(offsetX, offsetY, position, x1, y1, x2, y2, widthX, heightY);
-            updateElement(id, nx1, ny1, nx2, ny2, type, image, nwidthX, nheightY);
+            updateElement(id, nx1, ny1, nx2, ny2, type, image, nwidthX, nheightY, modelType);
         }
 
         if (!isDrawing) {
@@ -406,16 +434,30 @@ export default function artboard(props) {
         // }
 
         setAction("none");
-        setSelectedElement(null);
+        //setSelectedElement(null);
         contextRef.current.closePath();
-        restoreArray.push(contextRef.current.getImageData(0, 0, canvas.width, canvas.height))
-        arrayIndex += 1
+        //restoreArray.push(contextRef.current.getImageData(0, 0, canvas.width, canvas.height))
+        //arrayIndex += 1
         setIsDrawing(false);
     };
 
     // to get the position of pointer for creating text box
     const getPosition = ({ nativeEvent }) => {
-        const { offsetX, offsetY } = nativeEvent;
+        var offsetX
+        var offsetY
+
+        const { type } = nativeEvent
+
+        if (type === 'mousedown') {
+            offsetX = nativeEvent.offsetX
+            offsetY = nativeEvent.offsetY
+        } else {
+            var rect = nativeEvent.target.getBoundingClientRect();
+            offsetX = nativeEvent.changedTouches[0].pageX - rect.left;
+            offsetY = nativeEvent.changedTouches[0].pageY - rect.top;
+        }
+
+
         setTextArray([...textArray, { x: offsetX, y: offsetY }])
         setTextArrayIndex(textArrayIndex + 1)
         // const inputText = document.createElement("textarea")
@@ -448,7 +490,21 @@ export default function artboard(props) {
     }
 
     const movingText = ({ nativeEvent }) => {
-        const { offsetX, offsetY } = nativeEvent;
+        var offsetX
+        var offsetY
+
+        const { type } = nativeEvent
+
+        if (type === 'mousemove') {
+            offsetX = nativeEvent.offsetX
+            offsetY = nativeEvent.offsetY
+        } else {
+            var rect = nativeEvent.target.getBoundingClientRect();
+            offsetX = nativeEvent.changedTouches[0].pageX - rect.left;
+            offsetY = nativeEvent.changedTouches[0].pageY - rect.top;
+        }
+
+
         if (action === 'movingText') {
             window.document.getElementById('canvas').style.cursor = "grabbing"
             textArray[textArrayIndex].x = offsetX
@@ -513,6 +569,7 @@ export default function artboard(props) {
     const selectErase = (e) => {
         setTool('eraser')
         setPencil({ ...pencil, color: 'white', width: 20 })
+        window.document.getElementById('canvas').style.cursor = "crosshair"
         const pencilMore = document.getElementById('pencil')
         const eraserMore = document.getElementById('eraser')
         pencilMore.style.display = "none"
@@ -530,13 +587,22 @@ export default function artboard(props) {
             myImage.src = URL.createObjectURL(file); // Assigns converted image to image object
             myImage.onload = () => {
                 const id = elements.length;
-                const element = createElement(id, 100, 100, myImage.width * 0.5 + 100, myImage.height * 0.5 + 100, "img", myImage, myImage.width * 0.5, myImage.height * 0.5);
+                const element = createElement(id, 100, 100, myImage.width * 0.5 + 100, myImage.height * 0.5 + 100, "img", myImage, myImage.width * 0.5, myImage.height * 0.5, 'imageModel');
                 setElements(prevState => [...prevState, element]);
                 setSelectedElement(element);
                 // contextRef.current.drawImage(myImage, 100, 100, myImage.width * 0.5, myImage.height * 0.5); // Draws the image on canvas
                 // let imgData = contextRef.current.toDataURL("image/jpeg", 0.75);
             }
         }
+    }
+
+    // onclick function for removing image
+    const onRemoveImage = () => {
+        console.log('selected elements', selectedElement)
+        var elementsCloneRemImg = [...elements]
+        elementsCloneRemImg.splice(elementsCloneRemImg.findIndex(img => img.id === selectedElement.id), 1);
+        setElements(elementsCloneRemImg)
+        props.onDeleteImage(selectedElement)
     }
 
     // on selecting clear tool
@@ -559,21 +625,6 @@ export default function artboard(props) {
         setDrawArray([])
         setElements([])
     }
-
-    // on selecting download tool
-    // const download = async () => {
-    //     textArray.forEach((textElement) => {
-    //         const { x, y, promptText } = textElement
-    //         writeText(x, y, promptText)
-    //     })
-    //     const image = canvasRef.current.toDataURL('image/png');
-    //     const blob = await (await fetch(image)).blob();
-    //     const blobURL = URL.createObjectURL(blob);
-    //     const link = document.createElement('a');
-    //     link.href = blobURL;
-    //     link.download = "image.png";
-    //     link.click();
-    // }
 
     const download = async () => {
         const oldCanvas = canvasRef.current;
@@ -630,22 +681,26 @@ export default function artboard(props) {
         tool === 'pen' ? pencilMore.style.display = "block" : pencilMore.style.display = "none"
     }, [tool])
 
-    UseEffect(() => {
-        document.body.onmousemove = function (e) {
-            var mouse = document.getElementById('circularcursor')
-            if (tool === 'eraser') {
-                window.document.getElementById('canvas').style.cursor = "none"
-                mouse.style.display = "block"
-                mouse.style.setProperty('left', (e.clientX + window.scrollX) + 'px')
-                mouse.style.setProperty('top', (e.clientY + window.scrollX + 50) + 'px')
-                mouse.style.setProperty('height', (pencil.width) + 'px')
-                mouse.style.setProperty('width', (pencil.width) + 'px')
-            } else {
-                // mouse ? mouse.style.display = "none" : ''
-                mouse.style.display = "none"
-            }
-        }
-    }, [tool, pencil.width])
+    // UseEffect(() => {
+    //     document.body.onmousemove = function (e) {
+    //         var mouse = document.getElementById('circularcursor')
+    //         if (tool === 'eraser') {
+    //             window.document.getElementById('canvas').style.cursor = "none"
+    //             mouse.style.display = "block"
+    //             mouse.style.setProperty('left', (e.offsetX) + 'px')
+    //             mouse.style.setProperty('top', (e.offsetY + 40) + 'px')
+    //             mouse.style.setProperty('height', (pencil.width) + 'px')
+    //             mouse.style.setProperty('width', (pencil.width) + 'px')
+    //         } else {
+    //             mouse ? mouse.style.display = "none" : nothing()
+    //             //mouse.style.display = "none"
+    //         }
+    //     }
+    // }, [tool, pencil.width])
+
+    const nothing = () => {
+
+    }
 
     return (
         <div className="">
@@ -689,6 +744,7 @@ export default function artboard(props) {
                             />
                         </div>
                     ))}
+                    <button id="remove" style={{ display: "none" }} onClick={onRemoveImage}><MdDelete /></button>
                     <canvas
                         className="drawing-board"
                         id="canvas"
@@ -713,7 +769,7 @@ export default function artboard(props) {
                         <div className="pen-style-open" id="pencil">
                             {penOpen ? <FaAngleDoubleLeft onClick={() => setPenOpen(!penOpen)} /> : <FaAngleDoubleRight onClick={() => setPenOpen(!penOpen)} />}
                             <div className={penOpen ? "pen-menu-open" : "pen-menu-close"}>
-                                <SketchPicker
+                                <BlockPicker
                                     color={pencil.color}
                                     onChangeComplete={handleChangeComplete}
                                 />
