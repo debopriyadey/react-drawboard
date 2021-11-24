@@ -1,6 +1,6 @@
 {
   "name": "react-drawboard",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "React Artboard",
   "author": "Debopriya Dey",
   "keywords": [
@@ -8,6 +8,11 @@
     "Artboard",
     "Canvas"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/facebook/react.git",
+    "directory": "dist"
+  },
   "private": false,
   "main": "dist/index.js",
   "module": "dist/index.js",
