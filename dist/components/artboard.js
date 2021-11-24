@@ -328,7 +328,11 @@ function artboard(props) {
     setItemNo(props.itemno);
   }, []);
   (0, _react.useEffect)(() => {
+    console.log(props.images); //var elementsCloneUpdImg = [...elements]
+    //elementsCloneUpdImg = props.images
+
     setElements(props.images);
+    console.log(elements);
   }, [props.images]);
   (0, _react.useEffect)(() => {
     const canvas = canvasRef.current;
@@ -342,7 +346,6 @@ function artboard(props) {
     contextRef.current = context; // redrawing every image on value change of image
 
     elements.length > 0 && elements.forEach(imageElement => {
-      //console.log(imageElement)
       const {
         image,
         x1,
@@ -351,7 +354,7 @@ function artboard(props) {
         heightY
       } = imageElement;
       Object.keys(imageElement.image).length === 0 && imageElement.image.constructor === Object ? // returns true if image object is empty
-      console.log('no image') : contextRef.current.drawImage(image, x1, y1, widthX, heightY);
+      nothing() : contextRef.current.drawImage(image, x1, y1, widthX, heightY);
     }); // textArray.forEach((textElement) => {
     //     const { x, y, promptText } = textElement
     //     writeText(x, y, promptText)
@@ -400,7 +403,7 @@ function artboard(props) {
     sessionStorage.setItem('images ' + itemNo, JSON.stringify(elements));
   }, [elements, drawArray, textArray]); // drawing image
 
-  const createElement = (id, x1, y1, x2, y2, type, image, widthX, heightY) => {
+  const createElement = (id, x1, y1, x2, y2, type, image, widthX, heightY, model_type, silhouetteId, created_at) => {
     clearCanvas();
     contextRef.current.drawImage(image, x1, y1, widthX, heightY);
     return {
@@ -412,15 +415,22 @@ function artboard(props) {
       type,
       image,
       widthX,
-      heightY
+      heightY,
+      model_type,
+      silhouetteId,
+      created_at
     };
   }; // updating image
 
 
-  const updateElement = (id, x1, y1, x2, y2, type, image, widthX, heightY) => {
-    const updatedElement = createElement(id, x1, y1, x2, y2, type, image, widthX, heightY);
+  const updateElement = (id, x1, y1, x2, y2, type, image, widthX, heightY, model_type, silhouetteId, created_at) => {
+    const updatedElement = createElement(id, x1, y1, x2, y2, type, image, widthX, heightY, model_type, silhouetteId, created_at);
     const elementsCopy = [...elements];
-    elementsCopy[id] = updatedElement;
+    elementsCopy.map((elementsCopyObject, i) => {
+      if (elementsCopyObject.id === updatedElement.id) {
+        elementsCopy[i] = updatedElement;
+      }
+    });
     setElements(elementsCopy);
   }; // drawing drawings
 
@@ -476,6 +486,11 @@ function artboard(props) {
       const element = getElementAtPosition(offsetX, offsetY, elements);
 
       if (element) {
+        var removeBtn = document.getElementById('remove');
+        removeBtn.style.display = 'block';
+        removeBtn.style.position = 'absolute';
+        removeBtn.style.setProperty('left', element.x1 - 10 + 'px');
+        removeBtn.style.setProperty('top', element.y1 - 10 + 'px');
         const clientX = offsetX - element.x1;
         const clientY = offsetY - element.y1;
         setSelectedElement(_objectSpread(_objectSpread({}, element), {}, {
@@ -527,6 +542,14 @@ function artboard(props) {
     if (tool === "selection") {
       const element = getElementAtPosition(offsetX, offsetY, elements);
       nativeEvent.target.style.cursor = element ? cursorForPosition(element.position) : "default";
+      var removeBtn = document.getElementById('remove');
+
+      if (element !== undefined) {
+        removeBtn.style.setProperty('left', element.x1 - 10 + 'px');
+        removeBtn.style.setProperty('top', element.y1 - 10 + 'px');
+      } else {
+        removeBtn.style.display = 'none';
+      }
     } else if (tool === 'pen') {
       window.document.getElementById('canvas').style.cursor = "crosshair";
     }
@@ -547,13 +570,16 @@ function artboard(props) {
         clientY,
         image,
         widthX,
-        heightY
+        heightY,
+        model_type,
+        silhouetteId,
+        created_at
       } = selectedElement;
       const width = x2 - x1;
       const height = y2 - y1;
       const newX1 = offsetX - clientX;
       const newY1 = offsetY - clientY;
-      updateElement(id, newX1, newY1, newX1 + width, newY1 + height, type, image, widthX, heightY);
+      updateElement(id, newX1, newY1, newX1 + width, newY1 + height, type, image, widthX, heightY, model_type, silhouetteId, created_at);
     } else if (action === "resizing") {
       const {
         id,
@@ -565,7 +591,10 @@ function artboard(props) {
         y2,
         image,
         widthX,
-        heightY
+        heightY,
+        model_type,
+        silhouetteId,
+        created_at
       } = selectedElement;
       const {
         nx1,
@@ -575,7 +604,7 @@ function artboard(props) {
         nwidthX,
         nheightY
       } = resizedCoordinates(offsetX, offsetY, position, x1, y1, x2, y2, widthX, heightY);
-      updateElement(id, nx1, ny1, nx2, ny2, type, image, nwidthX, nheightY);
+      updateElement(id, nx1, ny1, nx2, ny2, type, image, nwidthX, nheightY, model_type, silhouetteId, created_at);
     }
 
     if (!isDrawing) {
@@ -601,8 +630,8 @@ function artboard(props) {
     //     }
     // }
 
-    setAction("none");
-    setSelectedElement(null);
+    setAction("none"); //setSelectedElement(null);
+
     contextRef.current.closePath(); //restoreArray.push(contextRef.current.getImageData(0, 0, canvas.width, canvas.height))
     //arrayIndex += 1
 
@@ -633,20 +662,7 @@ function artboard(props) {
       x: offsetX,
       y: offsetY
     }]);
-    setTextArrayIndex(textArrayIndex + 1); // const inputText = document.createElement("textarea")
-    // canvasInput.current.appendChild(inputText)
-    // inputText.style.position = "absolute"
-    // inputText.style.left = offsetX + 'px'
-    // inputText.style.top = offsetY + 'px'
-    // let writenText = ''
-    // var promtText = prompt()
-    // const removeText = document.querySelectorAll('textarea')
-    // console.log(removeText)
-    // if (removeText != null) {
-    //     removeText.forEach(element => {
-    //         canvasInput.current.removeChild(element)
-    //     })
-    // };
+    setTextArrayIndex(textArrayIndex + 1);
   };
 
   const moveText = (e, x, y) => {
@@ -755,7 +771,6 @@ function artboard(props) {
     handleCloseI();
     var reader = new FileReader();
     reader.readAsDataURL(file);
-    console.log(file);
 
     reader.onloadend = () => {
       var myImage = new Image(); // Creates image object
@@ -763,14 +778,22 @@ function artboard(props) {
       myImage.src = URL.createObjectURL(file); // Assigns converted image to image object
 
       myImage.onload = () => {
-        console.log(myImage);
         const id = elements.length;
-        const element = createElement(id, 100, 100, myImage.width * 0.5 + 100, myImage.height * 0.5 + 100, "img", myImage, myImage.width * 0.5, myImage.height * 0.5);
+        const element = createElement(id, 100, 100, myImage.width * 0.5 + 100, myImage.height * 0.5 + 100, "img", myImage, myImage.width * 0.5, myImage.height * 0.5, 'imageModel', 0, 'created_at');
         setElements(prevState => [...prevState, element]);
         setSelectedElement(element); // contextRef.current.drawImage(myImage, 100, 100, myImage.width * 0.5, myImage.height * 0.5); // Draws the image on canvas
         // let imgData = contextRef.current.toDataURL("image/jpeg", 0.75);
       };
     };
+  }; // onclick function for removing image
+
+
+  const onRemoveImage = () => {
+    console.log('selected elements', selectedElement);
+    var elementsCloneRemImg = [...elements];
+    elementsCloneRemImg.splice(elementsCloneRemImg.findIndex(img => img.id === selectedElement.id), 1);
+    setElements(elementsCloneRemImg);
+    props.onDeleteImage(selectedElement);
   }; // on selecting clear tool
 
 
@@ -791,21 +814,7 @@ function artboard(props) {
     setTextArray([]);
     setDrawArray([]);
     setElements([]);
-  }; // on selecting download tool
-  // const download = async () => {
-  //     textArray.forEach((textElement) => {
-  //         const { x, y, promptText } = textElement
-  //         writeText(x, y, promptText)
-  //     })
-  //     const image = canvasRef.current.toDataURL('image/png');
-  //     const blob = await (await fetch(image)).blob();
-  //     const blobURL = URL.createObjectURL(blob);
-  //     const link = document.createElement('a');
-  //     link.href = blobURL;
-  //     link.download = "image.png";
-  //     link.click();
-  // }
-
+  };
 
   const download = async () => {
     const oldCanvas = canvasRef.current; //create a new canvas
@@ -929,7 +938,13 @@ function artboard(props) {
     value: pos.promptText,
     onChange: e => writeTextInput(e, pos.x, pos.y) // onClick={(e) => getTextBox(e, pos.x, pos.y)}
 
-  }))), /*#__PURE__*/_react.default.createElement("canvas", {
+  }))), /*#__PURE__*/_react.default.createElement("button", {
+    id: "remove",
+    style: {
+      display: "none"
+    },
+    onClick: onRemoveImage
+  }, /*#__PURE__*/_react.default.createElement(_md.MdDelete, null)), /*#__PURE__*/_react.default.createElement("canvas", {
     className: "drawing-board",
     id: "canvas",
     onMouseDown: tool === 'text' ? getPosition : startDrawing,

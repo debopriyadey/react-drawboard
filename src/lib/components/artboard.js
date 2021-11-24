@@ -267,15 +267,15 @@ export default function artboard(props) {
 
 
     // drawing image
-    const createElement = (id, x1, y1, x2, y2, type, image, widthX, heightY, modelType) => {
+    const createElement = (id, x1, y1, x2, y2, type, image, widthX, heightY, model_type, silhouetteId, created_at) => {
         clearCanvas()
         contextRef.current.drawImage(image, x1, y1, widthX, heightY);
-        return { id, x1, y1, x2, y2, type, image, widthX, heightY, modelType };
+        return { id, x1, y1, x2, y2, type, image, widthX, heightY, model_type, silhouetteId, created_at };
     }
 
     // updating image
-    const updateElement = (id, x1, y1, x2, y2, type, image, widthX, heightY, modelType) => {
-        const updatedElement = createElement(id, x1, y1, x2, y2, type, image, widthX, heightY, modelType);
+    const updateElement = (id, x1, y1, x2, y2, type, image, widthX, heightY, model_type, silhouetteId, created_at) => {
+        const updatedElement = createElement(id, x1, y1, x2, y2, type, image, widthX, heightY, model_type, silhouetteId, created_at);
         const elementsCopy = [...elements];
         elementsCopy.map((elementsCopyObject, i) => {
             if (elementsCopyObject.id === updatedElement.id) {
@@ -395,16 +395,16 @@ export default function artboard(props) {
             textArray[textArrayIndex].x = offsetX
             textArray[textArrayIndex].y = offsetY
         } else if (action === "moving") {
-            const { id, x1, x2, y1, y2, type, clientX, clientY, image, widthX, heightY, modelType } = selectedElement;
+            const { id, x1, x2, y1, y2, type, clientX, clientY, image, widthX, heightY, model_type, silhouetteId, created_at} = selectedElement;
             const width = x2 - x1;
             const height = y2 - y1;
             const newX1 = offsetX - clientX;
             const newY1 = offsetY - clientY;
-            updateElement(id, newX1, newY1, newX1 + width, newY1 + height, type, image, widthX, heightY, modelType);
+            updateElement(id, newX1, newY1, newX1 + width, newY1 + height, type, image, widthX, heightY, model_type, silhouetteId, created_at);
         } else if (action === "resizing") {
-            const { id, type, position, x1, y1, x2, y2, image, widthX, heightY, modelType } = selectedElement;
+            const { id, type, position, x1, y1, x2, y2, image, widthX, heightY, model_type, silhouetteId, created_at } = selectedElement;
             const { nx1, ny1, nx2, ny2, nwidthX, nheightY } = resizedCoordinates(offsetX, offsetY, position, x1, y1, x2, y2, widthX, heightY);
-            updateElement(id, nx1, ny1, nx2, ny2, type, image, nwidthX, nheightY, modelType);
+            updateElement(id, nx1, ny1, nx2, ny2, type, image, nwidthX, nheightY, model_type, silhouetteId, created_at);
         }
 
         if (!isDrawing) {
@@ -457,23 +457,8 @@ export default function artboard(props) {
             offsetY = nativeEvent.changedTouches[0].pageY - rect.top;
         }
 
-
         setTextArray([...textArray, { x: offsetX, y: offsetY }])
         setTextArrayIndex(textArrayIndex + 1)
-        // const inputText = document.createElement("textarea")
-        // canvasInput.current.appendChild(inputText)
-        // inputText.style.position = "absolute"
-        // inputText.style.left = offsetX + 'px'
-        // inputText.style.top = offsetY + 'px'
-        // let writenText = ''
-        // var promtText = prompt()
-        // const removeText = document.querySelectorAll('textarea')
-        // console.log(removeText)
-        // if (removeText != null) {
-        //     removeText.forEach(element => {
-        //         canvasInput.current.removeChild(element)
-        //     })
-        // };
     }
 
     const moveText = (e, x, y) => {
@@ -587,7 +572,7 @@ export default function artboard(props) {
             myImage.src = URL.createObjectURL(file); // Assigns converted image to image object
             myImage.onload = () => {
                 const id = elements.length;
-                const element = createElement(id, 100, 100, myImage.width * 0.5 + 100, myImage.height * 0.5 + 100, "img", myImage, myImage.width * 0.5, myImage.height * 0.5, 'imageModel');
+                const element = createElement(id, 100, 100, myImage.width * 0.5 + 100, myImage.height * 0.5 + 100, "img", myImage, myImage.width * 0.5, myImage.height * 0.5, 'imageModel', 0, 'created_at');
                 setElements(prevState => [...prevState, element]);
                 setSelectedElement(element);
                 // contextRef.current.drawImage(myImage, 100, 100, myImage.width * 0.5, myImage.height * 0.5); // Draws the image on canvas
