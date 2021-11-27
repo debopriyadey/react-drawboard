@@ -281,6 +281,18 @@ function artboard(props) {
   const [itemNo, setItemNo] = (0, _react.useState)();
   const [isDrawing, setIsDrawing] = (0, _react.useState)(false); // to now drawing state
 
+  const [isDragging, setIsDragging] = (0, _react.useState)(false); // to now pan state
+
+  const [cameraOffset, setCameraOffset] = (0, _react.useState)({
+    x: window.innerWidth / 2,
+    y: window.innerHeight / 2
+  }); //
+
+  const [dragStart, setDragStart] = (0, _react.useState)({
+    x: 0,
+    y: 0
+  });
+  const [cameraZoom, setCameraZoom] = (0, _react.useState)(1);
   const [pencil, setPencil] = (0, _react.useState)({
     color: 'black',
     width: '2'
@@ -312,39 +324,52 @@ function artboard(props) {
 
   const [eraseOpen, setEraseOpen] = (0, _react.useState)(false); // for more option in erase
 
+  const [isLocked, setIsLocked] = (0, _react.useState)(false);
   const canvasRef = (0, _react.useRef)(null);
   const contextRef = (0, _react.useRef)(null);
   const canvasInput = (0, _react.useRef)(null);
+  let MAX_ZOOM = 5;
+  let MIN_ZOOM = 0.1;
+  let SCROLL_SENSITIVITY = 0.000005;
+  window.addEventListener("wheel", e => {
+    //console.log(e.target.className)
+    if (e.target.className === 'drawing-board' || e.target.className === 'artboard') {
+      e.preventDefault(); //adjustZoom(e.deltaY * SCROLL_SENSITIVITY)
+      //console.log('not scrolling')
+    } else {//console.log('scrolling')
+    }
+  }, {
+    passive: false
+  });
   (0, _react.useEffect)(() => {
-    setElements(props.images);
-    setTextArray(props.text);
-    setDrawArray(props.draw); // var drawStore = JSON.parse(sessionStorage.getItem('draw ' + itemNo))
-    // var textStore = JSON.parse(sessionStorage.getItem('text ' + itemNo))
-    // var imageStore = JSON.parse(sessionStorage.getItem('image ' + itemNo))
-    // drawStore !== null ? setDrawArray(drawStore) : setDrawArray(props.draw)
-    // textStore !== null ? setTextArray(textStore) : setDrawArray(props.text)
-    // imageStore !== null ? setElements(imageStore) : setTextArray(props.images)
-
-    setItemNo(props.itemno);
-  }, []);
-  (0, _react.useEffect)(() => {
-    console.log(props.images); //var elementsCloneUpdImg = [...elements]
-    //elementsCloneUpdImg = props.images
-
-    setElements(props.images);
-    console.log(elements);
-  }, [props.images]);
-  (0, _react.useEffect)(() => {
+    //var canvasHeight = document.getElementById('artboard').getBoundingClientRect()
+    //console.log(canvasHeight)
     const canvas = canvasRef.current;
     canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    canvas.style.width = "".concat(window.innerWidth, "px");
-    canvas.style.height = "".concat(window.innerHeight, "px");
+    canvas.height = window.innerHeight; //canvas.style.width = "200px";
+    //canvas.style.height = "200px";
+
     const context = canvas.getContext("2d"); //context.scale(2, 2);
 
     context.lineCap = "round";
-    contextRef.current = context; // redrawing every image on value change of image
+    contextRef.current = context; //context.translate(window.innerWidth / 2, window.innerHeight / 2)
+    //contextRef.current.scale(cameraZoom, cameraZoom)
 
+    contextRef.current.translate(-window.innerWidth / 2 + cameraOffset.x, -window.innerHeight / 2 + cameraOffset.y);
+    setElements(props.images);
+    setTextArray(props.text);
+    setDrawArray(props.draw);
+    setItemNo(props.itemno);
+  }, [cameraOffset]); // execute when props.image changes
+
+  (0, _react.useEffect)(() => {
+    //console.log(props.images)
+    //var elementsCloneUpdImg = [...elements]
+    //elementsCloneUpdImg = props.images
+    setElements([...props.images]); //console.log(elements)
+  }, [props.images]);
+  (0, _react.useEffect)(() => {
+    // redrawing every image on value change of image
     elements.length > 0 && elements.forEach(imageElement => {
       const {
         image,
@@ -355,11 +380,7 @@ function artboard(props) {
       } = imageElement;
       Object.keys(imageElement.image).length === 0 && imageElement.image.constructor === Object ? // returns true if image object is empty
       nothing() : contextRef.current.drawImage(image, x1, y1, widthX, heightY);
-    }); // textArray.forEach((textElement) => {
-    //     const { x, y, promptText } = textElement
-    //     writeText(x, y, promptText)
-    // })
-    // redrawing every drawing on vlue change of image
+    }); // redrawing every drawing on value change of image
 
     drawArray.forEach(drawElement => {
       const {
@@ -370,16 +391,23 @@ function artboard(props) {
       } = drawElement;
       drawLibrary(color, width, x, y);
     });
-  }, [elements]); // const updateSessionStorage = (type, itemNo, store, array) => {
-  //     console.log('updating store')
-  //     console.log(array)
-  //     array.forEach((arrayElement) => {
-  //         store.push(arrayElement)
-  //     })
-  //     sessionStorage.setItem(type + itemNo, JSON.stringify(store))
-  // }
-  // constant update state of parent on update of artboard
-  // draw update
+  }, [elements]);
+  (0, _react.useEffect)(() => {
+    const canvas = canvasRef.current; //canvas.width = window.innerWidth;
+    //canvas.height = window.innerHeight;
+    //canvas.style.width = `${window.innerWidth}px`;
+    //canvas.style.height = `${window.innerHeight}px`;
+
+    const context = canvas.getContext("2d"); //context.scale(1, 1);
+    //context.lineCap = "round";
+
+    contextRef.current = context; //context.translate(window.innerWidth / 2, window.innerHeight / 2)
+    //console.log(cameraZoom, cameraOffset)
+
+    contextRef.current.scale(cameraZoom, cameraZoom); //console.log('run on cameraoffset and camerazoom')
+    //var numberDemo = Math.random()
+    //context.translate(numberDemo, numberDemo)
+  }, [cameraOffset, cameraZoom]); // draw update
 
   (0, _react.useEffect)(() => {
     props.onSaveDraw(drawArray);
@@ -391,17 +419,67 @@ function artboard(props) {
 
   (0, _react.useEffect)(() => {
     props.onSaveImages(elements);
-  }, [elements]); // Saving the data in session storage
+  }, [elements]); // Gets the relevant location from a mouse or single touch event
 
-  (0, _react.useEffect)(() => {
-    var drawStore = sessionStorage.getItem('draw ' + itemNo);
-    var textStore = sessionStorage.getItem('text ' + itemNo);
-    var imageStore = sessionStorage.getItem('image ' + itemNo); // var drawStoreClone = 
+  function getEventLocation(e) {
+    if (e.touches && e.touches.length == 1) {
+      return {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY
+      };
+    } else if (e.clientX && e.clientY) {
+      return {
+        x: e.clientX,
+        y: e.clientY
+      };
+    }
+  }
 
-    sessionStorage.setItem('draw ' + itemNo, JSON.stringify(drawArray));
-    sessionStorage.setItem('text ' + itemNo, JSON.stringify(textArray));
-    sessionStorage.setItem('images ' + itemNo, JSON.stringify(elements));
-  }, [elements, drawArray, textArray]); // drawing image
+  function handleTouch(e, singleTouchHandler) {
+    if (e.touches.length == 1) {
+      singleTouchHandler(e);
+    } else if (e.type == "touchmove" && e.touches.length == 2) {
+      setIsDragging(false);
+      handlePinch(e);
+    }
+  }
+
+  let initialPinchDistance = null;
+  let lastZoom = cameraZoom;
+
+  function handlePinch(e) {
+    e.preventDefault();
+    let touch1 = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY
+    };
+    let touch2 = {
+      x: e.touches[1].clientX,
+      y: e.touches[1].clientY
+    }; // This is distance squared, but no need for an expensive sqrt as it's only used in ratio
+
+    let currentDistance = (touch1.x - touch2.x) ** 2 + (touch1.y - touch2.y) ** 2;
+
+    if (initialPinchDistance == null) {
+      initialPinchDistance = currentDistance;
+    } else {
+      adjustZoom(null, currentDistance / initialPinchDistance);
+    }
+  }
+
+  function adjustZoom(zoomAmount, zoomFactor) {
+    if (!isDragging) {
+      if (zoomAmount) {
+        setCameraZoom(cameraZoom + zoomAmount);
+      } else if (zoomFactor) {//console.log(zoomFactor)
+        //setCameraOffset(zoomFactor * lastZoom)
+      }
+
+      setCameraZoom(Math.min(cameraZoom, MAX_ZOOM));
+      setCameraZoom(Math.max(cameraZoom, MIN_ZOOM)); //console.log(zoomAmount)
+    }
+  } // drawing image
+
 
   const createElement = (id, x1, y1, x2, y2, type, image, widthX, heightY, model_type, silhouetteId, created_at) => {
     clearCanvas();
@@ -504,6 +582,14 @@ function artboard(props) {
           setAction("resizing");
         }
       }
+    } else if (tool === "pan") {
+      setIsDragging(true);
+      setDragStart(_objectSpread(_objectSpread({}, dragStart), {}, {
+        x: offsetX / cameraZoom - cameraOffset.x
+      }));
+      setDragStart(_objectSpread(_objectSpread({}, dragStart), {}, {
+        y: offsetY / cameraZoom - cameraOffset.y
+      })); //console.log('dragstart', dragStart.x, dragStart.y)
     } else {
       contextRef.current.beginPath();
       contextRef.current.moveTo(offsetX, offsetY);
@@ -552,6 +638,8 @@ function artboard(props) {
       }
     } else if (tool === 'pen') {
       window.document.getElementById('canvas').style.cursor = "crosshair";
+    } else if (tool == 'pan') {
+      window.document.getElementById('canvas').style.cursor = "grab";
     }
 
     if (action === 'movingText') {
@@ -607,6 +695,15 @@ function artboard(props) {
       updateElement(id, nx1, ny1, nx2, ny2, type, image, nwidthX, nheightY, model_type, silhouetteId, created_at);
     }
 
+    if (isDragging) {
+      setCameraOffset(_objectSpread(_objectSpread({}, cameraOffset), {}, {
+        x: offsetX / cameraZoom - dragStart.x
+      }));
+      setCameraOffset(_objectSpread(_objectSpread({}, cameraOffset), {}, {
+        y: offsetY / cameraZoom - dragStart.y
+      })); //console.log('cameraoffset', cameraOffset.x, cameraOffset.y)
+    }
+
     if (!isDrawing) {
       return;
     }
@@ -630,6 +727,9 @@ function artboard(props) {
     //     }
     // }
 
+    setIsDragging(false);
+    initialPinchDistance = null;
+    lastZoom = cameraZoom;
     setAction("none"); //setSelectedElement(null);
 
     contextRef.current.closePath(); //restoreArray.push(contextRef.current.getImageData(0, 0, canvas.width, canvas.height))
@@ -789,7 +889,7 @@ function artboard(props) {
 
 
   const onRemoveImage = () => {
-    console.log('selected elements', selectedElement);
+    //console.log('selected elements', selectedElement)
     var elementsCloneRemImg = [...elements];
     elementsCloneRemImg.splice(elementsCloneRemImg.findIndex(img => img.id === selectedElement.id), 1);
     setElements(elementsCloneRemImg);
@@ -801,13 +901,7 @@ function artboard(props) {
     const canvas = canvasRef.current;
     const context = canvas.getContext("2d");
     context.fillStyle = "white";
-    context.fillRect(0, 0, canvas.width, canvas.height); // const removeText = document.querySelectorAll('textarea')
-    // console.log(removeText)
-    // if (removeText != null) {
-    //     removeText.forEach(element => {
-    //         canvasInput.current.removeChild(element)
-    //     })
-    // };
+    context.fillRect(0, 0, canvas.width, canvas.height);
   };
 
   const deleteCanvas = () => {
@@ -876,30 +970,16 @@ function artboard(props) {
   (0, _react.useEffect)(() => {
     const pencilMore = document.getElementById('pencil');
     tool === 'pen' ? pencilMore.style.display = "block" : pencilMore.style.display = "none";
-  }, [tool]); // UseEffect(() => {
-  //     document.body.onmousemove = function (e) {
-  //         var mouse = document.getElementById('circularcursor')
-  //         if (tool === 'eraser') {
-  //             window.document.getElementById('canvas').style.cursor = "none"
-  //             mouse.style.display = "block"
-  //             mouse.style.setProperty('left', (e.offsetX) + 'px')
-  //             mouse.style.setProperty('top', (e.offsetY + 40) + 'px')
-  //             mouse.style.setProperty('height', (pencil.width) + 'px')
-  //             mouse.style.setProperty('width', (pencil.width) + 'px')
-  //         } else {
-  //             mouse ? mouse.style.display = "none" : nothing()
-  //             //mouse.style.display = "none"
-  //         }
-  //     }
-  // }, [tool, pencil.width])
+  }, [tool]);
 
   const nothing = () => {};
 
+  (0, _react.useEffect)(() => {
+    props.isLocked ? setIsLocked(true) : setIsLocked(false);
+  }, []);
   return /*#__PURE__*/_react.default.createElement("div", {
-    className: ""
+    id: "artboard"
   }, /*#__PURE__*/_react.default.createElement("div", {
-    id: "circularcursor"
-  }), /*#__PURE__*/_react.default.createElement("div", {
     className: "App",
     ref: canvasInput
   }, /*#__PURE__*/_react.default.createElement("div", {
@@ -944,7 +1024,11 @@ function artboard(props) {
       display: "none"
     },
     onClick: onRemoveImage
-  }, /*#__PURE__*/_react.default.createElement(_md.MdDelete, null)), /*#__PURE__*/_react.default.createElement("canvas", {
+  }, /*#__PURE__*/_react.default.createElement(_md.MdDelete, null)), isLocked ? /*#__PURE__*/_react.default.createElement("canvas", {
+    className: "drawing-board",
+    id: "canvas",
+    ref: canvasRef
+  }) : /*#__PURE__*/_react.default.createElement("canvas", {
     className: "drawing-board",
     id: "canvas",
     onMouseDown: tool === 'text' ? getPosition : startDrawing,
@@ -954,14 +1038,19 @@ function artboard(props) {
     onTouchMove: tool === 'text' ? movingText : draw,
     onTouchEnd: tool === 'text' ? movedText : finishDrawing,
     ref: canvasRef
-  }))), /*#__PURE__*/_react.default.createElement("br", null), /*#__PURE__*/_react.default.createElement("div", {
+  }))), /*#__PURE__*/_react.default.createElement("br", null), !isLocked && /*#__PURE__*/_react.default.createElement("div", {
     className: "menu-bar"
   }, /*#__PURE__*/_react.default.createElement("div", {
     className: "menu-item"
   }, /*#__PURE__*/_react.default.createElement("button", {
+    onClick: () => setTool("pan"),
+    className: tool === 'pan' ? 'disabled' : ''
+  }, /*#__PURE__*/_react.default.createElement(_md.MdPanTool, null))), /*#__PURE__*/_react.default.createElement("div", {
+    className: "menu-item"
+  }, /*#__PURE__*/_react.default.createElement("button", {
     onClick: () => setTool("selection"),
     className: tool === 'selection' ? 'disabled' : ''
-  }, /*#__PURE__*/_react.default.createElement(_fa.FaHandPointer, null))), /*#__PURE__*/_react.default.createElement("div", {
+  }, /*#__PURE__*/_react.default.createElement(_fa.FaExpandArrowsAlt, null))), /*#__PURE__*/_react.default.createElement("div", {
     className: "menu-item"
   }, /*#__PURE__*/_react.default.createElement("button", null, /*#__PURE__*/_react.default.createElement(_fa.FaPenAlt, {
     onClick: selectPen,

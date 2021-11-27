@@ -3,10 +3,10 @@ import { exportComponentAsJPEG, exportComponentAsPDF, exportComponentAsPNG } fro
 
 import { SketchPicker, BlockPicker } from 'react-color';
 
-import { FaPenAlt, FaImages, FaEraser, FaHandPointer, FaAngleDoubleLeft, FaAngleDoubleRight, FaDownload, FaSave } from 'react-icons/fa';
+import { FaPenAlt, FaImages, FaEraser, FaExpandArrowsAlt, FaAngleDoubleLeft, FaAngleDoubleRight, FaDownload, FaSave } from 'react-icons/fa';
 import { IoMdCloseCircle, IoMdMove } from 'react-icons/io'
-import { ImCancelCircle } from 'react-icons/im'
-import { MdDelete } from 'react-icons/md'
+import { ImCancelCircle, ImLock, ImUnlocked } from 'react-icons/im'
+import { MdDelete, MdPanTool } from 'react-icons/md'
 
 import './styles/artboard.css'
 
@@ -144,6 +144,16 @@ export default function artboard(props) {
 
     const [itemNo, setItemNo] = UseState()
     const [isDrawing, setIsDrawing] = UseState(false) // to now drawing state
+    const [isDragging, setIsDragging] = UseState(false) // to now pan state
+    const [cameraOffset, setCameraOffset] = UseState({
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2
+    }) //
+    const [dragStart, setDragStart] = UseState({
+        x: 0,
+        y: 0
+    })
+    const [cameraZoom, setCameraZoom] = UseState(1)
     const [pencil, setPencil] = UseState({
         color: 'black',
         width: '2'
@@ -165,45 +175,58 @@ export default function artboard(props) {
     const [selectedElement, setSelectedElement] = UseState(null); // for selected image
     const [penOpen, setPenOpen] = UseState(false) // for more option in pen
     const [eraseOpen, setEraseOpen] = UseState(false) // for more option in erase
+    const [isLocked, setIsLocked] = UseState(false)
     const canvasRef = UseRef(null);
     const contextRef = UseRef(null);
     const canvasInput = UseRef(null)
+    let MAX_ZOOM = 5
+    let MIN_ZOOM = 0.1
+    let SCROLL_SENSITIVITY = 0.000005
+
+    window.addEventListener("wheel", (e) => {
+        //console.log(e.target.className)
+        if (e.target.className === 'drawing-board' || e.target.className === 'artboard') {
+            e.preventDefault()
+            //adjustZoom(e.deltaY * SCROLL_SENSITIVITY)
+            //console.log('not scrolling')
+        } else {
+            //console.log('scrolling')
+        }
+    }, { passive: false });
 
     UseEffect(() => {
-
-        setElements(props.images)
-        setTextArray(props.text)
-        setDrawArray(props.draw)
-        // var drawStore = JSON.parse(sessionStorage.getItem('draw ' + itemNo))
-        // var textStore = JSON.parse(sessionStorage.getItem('text ' + itemNo))
-        // var imageStore = JSON.parse(sessionStorage.getItem('image ' + itemNo))
-        // drawStore !== null ? setDrawArray(drawStore) : setDrawArray(props.draw)
-        // textStore !== null ? setTextArray(textStore) : setDrawArray(props.text)
-        // imageStore !== null ? setElements(imageStore) : setTextArray(props.images)
-
-        setItemNo(props.itemno)
-    }, [])
-
-    UseEffect(() => {
-        console.log(props.images)
-        //var elementsCloneUpdImg = [...elements]
-        //elementsCloneUpdImg = props.images
-        setElements(props.images)
-        console.log(elements)
-        
-    }, [props.images])
-
-    UseEffect(() => {
+        //var canvasHeight = document.getElementById('artboard').getBoundingClientRect()
+        //console.log(canvasHeight)
         const canvas = canvasRef.current
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-        canvas.style.width = `${window.innerWidth}px`;
-        canvas.style.height = `${window.innerHeight}px`;
+        //canvas.style.width = "200px";
+        //canvas.style.height = "200px";
         const context = canvas.getContext("2d")
         //context.scale(2, 2);
         context.lineCap = "round";
         contextRef.current = context;
+        //context.translate(window.innerWidth / 2, window.innerHeight / 2)
+        //contextRef.current.scale(cameraZoom, cameraZoom)
+        contextRef.current.translate( -window.innerWidth / 2 + cameraOffset.x, -window.innerHeight / 2 + cameraOffset.y )
+        
+        setElements(props.images)
+        setTextArray(props.text)
+        setDrawArray(props.draw)
+        setItemNo(props.itemno)
+    }, [cameraOffset])
 
+    // execute when props.image changes
+    UseEffect(() => {
+        //console.log(props.images)
+        //var elementsCloneUpdImg = [...elements]
+        //elementsCloneUpdImg = props.images
+        setElements([...props.images])
+        //console.log(elements)
+
+    }, [props.images])
+
+    UseEffect(() => {
         // redrawing every image on value change of image
         elements.length > 0 && elements.forEach((imageElement) => {
             const { image, x1, y1, widthX, heightY } = imageElement
@@ -212,12 +235,8 @@ export default function artboard(props) {
                 contextRef.current.drawImage(image, x1, y1, widthX, heightY)
         });
 
-        // textArray.forEach((textElement) => {
-        //     const { x, y, promptText } = textElement
-        //     writeText(x, y, promptText)
-        // })
 
-        // redrawing every drawing on vlue change of image
+        // redrawing every drawing on value change of image
         drawArray.forEach((drawElement) => {
             const { color, width, x, y } = drawElement
             drawLibrary(color, width, x, y)
@@ -226,16 +245,24 @@ export default function artboard(props) {
 
     }, [elements])
 
-    // const updateSessionStorage = (type, itemNo, store, array) => {
-    //     console.log('updating store')
-    //     console.log(array)
-    //     array.forEach((arrayElement) => {
-    //         store.push(arrayElement)
-    //     })
-    //     sessionStorage.setItem(type + itemNo, JSON.stringify(store))
-    // }
+    UseEffect(() => {
+        const canvas = canvasRef.current
+        //canvas.width = window.innerWidth;
+        //canvas.height = window.innerHeight;
+        //canvas.style.width = `${window.innerWidth}px`;
+        //canvas.style.height = `${window.innerHeight}px`;
+        const context = canvas.getContext("2d")
+        //context.scale(1, 1);
+        //context.lineCap = "round";
+        contextRef.current = context;
+        //context.translate(window.innerWidth / 2, window.innerHeight / 2)
+        //console.log(cameraZoom, cameraOffset)
+        contextRef.current.scale(cameraZoom, cameraZoom)
+        //console.log('run on cameraoffset and camerazoom')
+        //var numberDemo = Math.random()
+        //context.translate(numberDemo, numberDemo)
 
-    // constant update state of parent on update of artboard
+    }, [cameraOffset, cameraZoom])
 
     // draw update
     UseEffect(() => {
@@ -252,18 +279,62 @@ export default function artboard(props) {
         props.onSaveImages(elements)
     }, [elements])
 
-    // Saving the data in session storage
-    UseEffect(() => {
-        var drawStore = sessionStorage.getItem('draw ' + itemNo)
-        var textStore = sessionStorage.getItem('text ' + itemNo)
-        var imageStore = sessionStorage.getItem('image ' + itemNo)
-        // var drawStoreClone = 
-        sessionStorage.setItem('draw ' + itemNo, JSON.stringify(drawArray))
-        sessionStorage.setItem('text ' + itemNo, JSON.stringify(textArray))
-        sessionStorage.setItem('images ' + itemNo, JSON.stringify(elements))
+    // Gets the relevant location from a mouse or single touch event
+    function getEventLocation(e) {
+        if (e.touches && e.touches.length == 1) {
+            return { x: e.touches[0].clientX, y: e.touches[0].clientY }
+        }
+        else if (e.clientX && e.clientY) {
+            return { x: e.clientX, y: e.clientY }
+        }
+    }
 
-    }, [elements, drawArray, textArray])
+    function handleTouch(e, singleTouchHandler) {
+        if (e.touches.length == 1) {
+            singleTouchHandler(e)
+        }
+        else if (e.type == "touchmove" && e.touches.length == 2) {
+            setIsDragging(false)
+            handlePinch(e)
+        }
+    }
 
+    let initialPinchDistance = null
+    let lastZoom = cameraZoom
+
+    function handlePinch(e) {
+        e.preventDefault()
+
+        let touch1 = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+        let touch2 = { x: e.touches[1].clientX, y: e.touches[1].clientY }
+
+        // This is distance squared, but no need for an expensive sqrt as it's only used in ratio
+        let currentDistance = (touch1.x - touch2.x) ** 2 + (touch1.y - touch2.y) ** 2
+
+        if (initialPinchDistance == null) {
+            initialPinchDistance = currentDistance
+        }
+        else {
+            adjustZoom(null, currentDistance / initialPinchDistance)
+        }
+    }
+
+    function adjustZoom(zoomAmount, zoomFactor) {
+        if (!isDragging) {
+            if (zoomAmount) {
+                setCameraZoom(cameraZoom + zoomAmount)
+            }
+            else if (zoomFactor) {
+                //console.log(zoomFactor)
+                //setCameraOffset(zoomFactor * lastZoom)
+            }
+
+            setCameraZoom(Math.min(cameraZoom, MAX_ZOOM))
+            setCameraZoom(Math.max(cameraZoom, MIN_ZOOM))
+
+            //console.log(zoomAmount)
+        }
+    }
 
 
     // drawing image
@@ -337,7 +408,7 @@ export default function artboard(props) {
                 var removeBtn = document.getElementById('remove')
                 removeBtn.style.display = 'block'
                 removeBtn.style.position = 'absolute'
-                removeBtn.style.setProperty('left', (element.x1 -10) + 'px')
+                removeBtn.style.setProperty('left', (element.x1 - 10) + 'px')
                 removeBtn.style.setProperty('top', (element.y1 - 10) + 'px')
 
                 const clientX = offsetX - element.x1;
@@ -349,6 +420,11 @@ export default function artboard(props) {
                     setAction("resizing");
                 }
             }
+        } else if (tool === "pan") {
+            setIsDragging(true)
+            setDragStart({ ...dragStart, x: offsetX / cameraZoom - cameraOffset.x })
+            setDragStart({ ...dragStart, y: offsetY / cameraZoom - cameraOffset.y })
+            //console.log('dragstart', dragStart.x, dragStart.y)
         } else {
             contextRef.current.beginPath();
             contextRef.current.moveTo(offsetX, offsetY);
@@ -375,7 +451,6 @@ export default function artboard(props) {
 
         var drawArrayClone = { ...drawArray }
         if (tool === "selection") {
-
             const element = getElementAtPosition(offsetX, offsetY, elements);
             nativeEvent.target.style.cursor = element ? cursorForPosition(element.position) : "default";
             var removeBtn = document.getElementById('remove')
@@ -387,6 +462,8 @@ export default function artboard(props) {
             }
         } else if (tool === 'pen') {
             window.document.getElementById('canvas').style.cursor = "crosshair"
+        } else if (tool == 'pan') {
+            window.document.getElementById('canvas').style.cursor = "grab"
         }
 
 
@@ -395,7 +472,7 @@ export default function artboard(props) {
             textArray[textArrayIndex].x = offsetX
             textArray[textArrayIndex].y = offsetY
         } else if (action === "moving") {
-            const { id, x1, x2, y1, y2, type, clientX, clientY, image, widthX, heightY, model_type, silhouetteId, created_at} = selectedElement;
+            const { id, x1, x2, y1, y2, type, clientX, clientY, image, widthX, heightY, model_type, silhouetteId, created_at } = selectedElement;
             const width = x2 - x1;
             const height = y2 - y1;
             const newX1 = offsetX - clientX;
@@ -405,6 +482,12 @@ export default function artboard(props) {
             const { id, type, position, x1, y1, x2, y2, image, widthX, heightY, model_type, silhouetteId, created_at } = selectedElement;
             const { nx1, ny1, nx2, ny2, nwidthX, nheightY } = resizedCoordinates(offsetX, offsetY, position, x1, y1, x2, y2, widthX, heightY);
             updateElement(id, nx1, ny1, nx2, ny2, type, image, nwidthX, nheightY, model_type, silhouetteId, created_at);
+        }
+
+        if (isDragging) {
+            setCameraOffset({ ...cameraOffset, x: offsetX / cameraZoom - dragStart.x })
+            setCameraOffset({ ...cameraOffset, y: offsetY / cameraZoom - dragStart.y })
+            //console.log('cameraoffset', cameraOffset.x, cameraOffset.y)
         }
 
         if (!isDrawing) {
@@ -432,6 +515,10 @@ export default function artboard(props) {
         //         updateElement(id, x1, y1, x2, y2, type, image, widthX, heightY);
         //     }
         // }
+
+        setIsDragging(false)
+        initialPinchDistance = null
+        lastZoom = cameraZoom
 
         setAction("none");
         //setSelectedElement(null);
@@ -583,7 +670,7 @@ export default function artboard(props) {
 
     // onclick function for removing image
     const onRemoveImage = () => {
-        console.log('selected elements', selectedElement)
+        //console.log('selected elements', selectedElement)
         var elementsCloneRemImg = [...elements]
         elementsCloneRemImg.splice(elementsCloneRemImg.findIndex(img => img.id === selectedElement.id), 1);
         setElements(elementsCloneRemImg)
@@ -596,13 +683,6 @@ export default function artboard(props) {
         const context = canvas.getContext("2d")
         context.fillStyle = "white"
         context.fillRect(0, 0, canvas.width, canvas.height)
-        // const removeText = document.querySelectorAll('textarea')
-        // console.log(removeText)
-        // if (removeText != null) {
-        //     removeText.forEach(element => {
-        //         canvasInput.current.removeChild(element)
-        //     })
-        // };
     }
 
     const deleteCanvas = () => {
@@ -666,30 +746,17 @@ export default function artboard(props) {
         tool === 'pen' ? pencilMore.style.display = "block" : pencilMore.style.display = "none"
     }, [tool])
 
-    // UseEffect(() => {
-    //     document.body.onmousemove = function (e) {
-    //         var mouse = document.getElementById('circularcursor')
-    //         if (tool === 'eraser') {
-    //             window.document.getElementById('canvas').style.cursor = "none"
-    //             mouse.style.display = "block"
-    //             mouse.style.setProperty('left', (e.offsetX) + 'px')
-    //             mouse.style.setProperty('top', (e.offsetY + 40) + 'px')
-    //             mouse.style.setProperty('height', (pencil.width) + 'px')
-    //             mouse.style.setProperty('width', (pencil.width) + 'px')
-    //         } else {
-    //             mouse ? mouse.style.display = "none" : nothing()
-    //             //mouse.style.display = "none"
-    //         }
-    //     }
-    // }, [tool, pencil.width])
 
     const nothing = () => {
 
     }
 
+    UseEffect(() => {
+        props.isLocked ? setIsLocked(true) : setIsLocked(false)
+    }, [])
+
     return (
-        <div className="">
-            <div id="circularcursor"></div>
+        <div id="artboard">
             <div className="App" ref={canvasInput}>
                 <div className="canvas-container">
                     {textArray && textArray.map((pos, index) => (
@@ -730,95 +797,111 @@ export default function artboard(props) {
                         </div>
                     ))}
                     <button id="remove" style={{ display: "none" }} onClick={onRemoveImage}><MdDelete /></button>
-                    <canvas
-                        className="drawing-board"
-                        id="canvas"
-                        onMouseDown={tool === 'text' ? getPosition : startDrawing}
-                        onMouseMove={tool === 'text' ? movingText : draw}
-                        onMouseUp={tool === 'text' ? movedText : finishDrawing}
-                        onTouchStart={tool === 'text' ? getPosition : startDrawing}
-                        onTouchMove={tool === 'text' ? movingText : draw}
-                        onTouchEnd={tool === 'text' ? movedText : finishDrawing}
-                        ref={canvasRef}
-                    />
+                    {
+                        isLocked ? (
+                            <canvas
+                                className="drawing-board"
+                                id="canvas"
+                                ref={canvasRef}
+                            />
+                        ) : (
+                            <canvas
+                                className="drawing-board"
+                                id="canvas"
+                                onMouseDown={tool === 'text' ? getPosition : startDrawing}
+                                onMouseMove={tool === 'text' ? movingText : draw}
+                                onMouseUp={tool === 'text' ? movedText : finishDrawing}
+                                onTouchStart={tool === 'text' ? getPosition : startDrawing}
+                                onTouchMove={tool === 'text' ? movingText : draw}
+                                onTouchEnd={tool === 'text' ? movedText : finishDrawing}
+                                ref={canvasRef}
+                            />
+                        )
+                    }
                 </div>
             </div>
             <br />
-            <div className="menu-bar">
-                <div className="menu-item">
-                    <button onClick={() => setTool("selection")} className={tool === 'selection' ? 'disabled' : ''}><FaHandPointer /></button>
-                </div>
-                <div className="menu-item">
-                    <button>
-                        <FaPenAlt onClick={selectPen} className={tool === 'pen' ? 'disabled' : ''} />
-                        <div className="pen-style-open" id="pencil">
-                            {penOpen ? <FaAngleDoubleLeft onClick={() => setPenOpen(!penOpen)} /> : <FaAngleDoubleRight onClick={() => setPenOpen(!penOpen)} />}
-                            <div className={penOpen ? "pen-menu-open" : "pen-menu-close"}>
-                                <BlockPicker
-                                    color={pencil.color}
-                                    onChangeComplete={handleChangeComplete}
-                                />
-                                <div className="pen-width">
-                                    <p className="pen-width-view">{pencil.width}</p>
-                                    <input
-                                        id="typeinp"
-                                        type="range"
-                                        min="0"
-                                        max="10"
-                                        step="0.5"
-                                        defaultValue={pencil.width}
-                                        onChange={(e) => setPencil({ ...pencil, width: e.target.value })}
+            {!isLocked &&
+                <div className="menu-bar">
+                    <div className="menu-item">
+                        <button onClick={() => setTool("pan")} className={tool === 'pan' ? 'disabled' : ''}><MdPanTool /></button>
+                    </div>
+                    <div className="menu-item">
+                        <button onClick={() => setTool("selection")} className={tool === 'selection' ? 'disabled' : ''}><FaExpandArrowsAlt /></button>
+                    </div>
+                    <div className="menu-item">
+                        <button>
+                            <FaPenAlt onClick={selectPen} className={tool === 'pen' ? 'disabled' : ''} />
+                            <div className="pen-style-open" id="pencil">
+                                {penOpen ? <FaAngleDoubleLeft onClick={() => setPenOpen(!penOpen)} /> : <FaAngleDoubleRight onClick={() => setPenOpen(!penOpen)} />}
+                                <div className={penOpen ? "pen-menu-open" : "pen-menu-close"}>
+                                    <BlockPicker
+                                        color={pencil.color}
+                                        onChangeComplete={handleChangeComplete}
                                     />
+                                    <div className="pen-width">
+                                        <p className="pen-width-view">{pencil.width}</p>
+                                        <input
+                                            id="typeinp"
+                                            type="range"
+                                            min="0"
+                                            max="10"
+                                            step="0.5"
+                                            defaultValue={pencil.width}
+                                            onChange={(e) => setPencil({ ...pencil, width: e.target.value })}
+                                        />
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </button>
-                </div>
-                <div className="menu-item">
-                    <button
-                        onClick={selectText}
-                        className={tool === 'text' ? 'disabled' : ''}
-                    >
-                        <strong>T</strong>
-                    </button>
-                </div>
-                <div className="menu-item">
-                    <button>
-                        <FaEraser onClick={selectErase} className={tool === 'eraser' ? 'disabled' : ''} />
-                        <div className="erase-style-open" id="eraser">
-                            {eraseOpen ? <FaAngleDoubleLeft onClick={() => setEraseOpen(!eraseOpen)} /> : <FaAngleDoubleRight onClick={() => setEraseOpen(!eraseOpen)} />}
-                            <div className={eraseOpen ? "pen-menu-open" : "pen-menu-close"}>
-                                <div className="pen-width">
-                                    <p className="pen-width-view">{pencil.width}</p>
-                                    <input
-                                        id="typeinp"
-                                        type="range"
-                                        min="10"
-                                        max="30"
-                                        step="2"
-                                        defaultValue={pencil.width}
-                                        onChange={(e) => setPencil({ ...pencil, width: e.target.value })}
-                                    />
+                        </button>
+                    </div>
+                    <div className="menu-item">
+                        <button
+                            onClick={selectText}
+                            className={tool === 'text' ? 'disabled' : ''}
+                        >
+                            <strong>T</strong>
+                        </button>
+                    </div>
+                    <div className="menu-item">
+                        <button>
+                            <FaEraser onClick={selectErase} className={tool === 'eraser' ? 'disabled' : ''} />
+                            <div className="erase-style-open" id="eraser">
+                                {eraseOpen ? <FaAngleDoubleLeft onClick={() => setEraseOpen(!eraseOpen)} /> : <FaAngleDoubleRight onClick={() => setEraseOpen(!eraseOpen)} />}
+                                <div className={eraseOpen ? "pen-menu-open" : "pen-menu-close"}>
+                                    <div className="pen-width">
+                                        <p className="pen-width-view">{pencil.width}</p>
+                                        <input
+                                            id="typeinp"
+                                            type="range"
+                                            min="10"
+                                            max="30"
+                                            step="2"
+                                            defaultValue={pencil.width}
+                                            onChange={(e) => setPencil({ ...pencil, width: e.target.value })}
+                                        />
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </button>
+                        </button>
+                    </div>
+                    <div className="menu-item">
+                        <button onClick={handleOpenI}><FaImages /></button>
+                    </div>
+                    <div className="menu-item">
+                        <button onClick={deleteCanvas}><MdDelete /></button>
+                    </div>
+                    <div className="menu-item">
+                        {/* <ComponentToPrint ref={canvasRef} /> */}
+                        <button onClick={() => exportComponentAsPNG(canvasInput)}>
+                            <FaDownload />
+                        </button>
+                    </div>
                 </div>
-                <div className="menu-item">
-                    <button onClick={handleOpenI}><FaImages /></button>
-                </div>
-                <div className="menu-item">
-                    <button onClick={deleteCanvas}><MdDelete /></button>
-                </div>
-                <div className="menu-item">
-                    {/* <ComponentToPrint ref={canvasRef} /> */}
-                    <button onClick={() => exportComponentAsPNG(canvasInput)}>
-                        <FaDownload />
-                    </button>
-                </div>
-            </div>
+            }
             <div className="save-btn">
                 <button onClick={(e) => props.onSave(e, elements, drawArray, textArray)}>Save <FaSave /></button>
+                {/* {isLocked ? <ImLock onClick={() => setIsLocked(false)} /> : <ImUnlocked onClick={() => setIsLocked(true)} />} */}
             </div>
             <Modal
                 open={openI}
